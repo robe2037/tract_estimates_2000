@@ -61,10 +61,10 @@ mrsf_2000_agg <- mrsf_2000 %>%
     HISP =  str_extract(VAR, "[^_]+"),
     SEX = str_extract(VAR, "(?<=_)[A-Z](?=_)"),
     RACE = str_extract(str_extract(VAR, "[^_]+$"), "[^0-9]+"),
-    YEAR = 2000
+    DATAYEAR = 2000
   ) %>%
   select(-VAR) %>%
-  group_by(GISJOIN, STATE, COUNTY, STATEA, COUNTYA, YEAR, SEX, AGEGRP, RACE) %>%
+  group_by(GISJOIN, STATE, COUNTY, STATEA, COUNTYA, DATAYEAR, SEX, AGEGRP, RACE) %>%
   summarize(POP = sum(POP), .groups = "drop")
 
 # Write ------------------------------

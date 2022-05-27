@@ -37,13 +37,13 @@ mrsf_2010_agg <- full_join(mrsf_2010, combos) %>%
          IMPRACE = recode(IMPRACE, !!!race_recode),
          SEX = recode(SEX, !!!sex_recode),
          AGEGRP = recode(AGEGRP, !!!age_recode),
-         YEAR = 2010) %>%
-  group_by(GISJOIN, YEAR, SEX, AGEGRP, IMPRACE) %>%
+         DATAYEAR = 2010) %>%
+  group_by(GISJOIN, DATAYEAR, SEX, AGEGRP, IMPRACE) %>%
   summarize(RESPOP = sum(RESPOP), .groups = "drop") %>%
   arrange(GISJOIN, SEX, AGEGRP, IMPRACE) %>%
   left_join(geog_info, by = "GISJOIN") %>%
   select(GISJOIN, STATE = STNAME, COUNTY = CTYNAME,
-         STATEA = STATE, COUNTYA = COUNTY, YEAR,
+         STATEA = STATE, COUNTYA = COUNTY, DATAYEAR,
          SEX, AGEGRP, RACE = IMPRACE, POP = RESPOP)
 
 # Write ------------------------------

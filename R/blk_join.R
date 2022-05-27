@@ -81,9 +81,10 @@ agg <- left_join(
   rename(GISJOIN = GISJOIN_CTY_2010)
 
 # Get all variable combinations for 2010 counties to reattach 0 cases
-nhgis_cty_2010 %>%
+mrsf_2000_2010 <- nhgis_cty_2010 %>%
   select(GISJOIN, STATEA, COUNTYA, SEX, AGEGRP, RACE) %>%
   distinct() %>%
   full_join(agg) %>%
+  filter(RACE != "other") %>% # MRSF does not include other.
   mutate(POP_ADJ = replace_na(POP_ADJ, 0))
 

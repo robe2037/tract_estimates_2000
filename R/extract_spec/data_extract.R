@@ -40,7 +40,8 @@ define_extract_nhgis(
   description = "Block counts for tract estimate pipeline",
   datasets = c("2000_SF1a", "2000_SF1b"),
   ds_tables = "NP012D",
-  ds_geog_levels = list("county", "block")
+  ds_geog_levels = list("county", "block"),
+  geographic_extents = "020"
 ) %>% 
   submit_extract() %>%
   wait_for_extract() %>%

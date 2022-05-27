@@ -5,29 +5,34 @@ library(tidyverse)
 # Data -------------------------------
 
 # 2000 MRSF
-mrsf <- vroom::vroom(here::here("data", "mrsf_2000_agg.csv")) %>%
+mrsf <- vroom::vroom(here::here("data", "preproc", "mrsf", "mrsf_2000_agg.csv")) %>%
   rename(POP_MRSF = POP) %>%
   select(-STATE, -COUNTY)
 
 # 2000 county level with 2000 boundaries
-nhgis_cty_2000 <- vroom::vroom(here::here("data", "nhgis_cty_2000_agg.csv")) %>%
+nhgis_cty_2000 <- vroom::vroom(here::here("data", "preproc", "county", "nhgis_cty_2000_agg.csv")) %>%
   rename(POP_CTY = POP) %>%
-  select(-STATE, -COUNTY)
+  select(-STATE, -COUNTY) %>%
+  filter(STATEA != "72") # Ignore PR? Not in MRSF.
 
 # 2010 county level with 2010 boundaries
-nhgis_cty_2010 <- vroom::vroom(here::here("data", "nhgis_cty_2010_agg.csv")) %>%
+nhgis_cty_2010 <- vroom::vroom(here::here("data", "preproc", "county", "nhgis_cty_2010_agg.csv")) %>%
   rename(POP_CTY = POP) %>%
-  select(-STATE, -COUNTY)
+  select(-STATE, -COUNTY) %>%
+  filter(STATEA != "72") # Ignore PR? Not in MRSF.
 
 # 2000 block level
-nhgis_blk <- vroom::vroom(here::here("data", "blk_agg_010.csv")) %>%
+nhgis_blk <- vroom::vroom(here::here("data", "preproc", "block", "blk_agg_020.csv")) %>%
   mutate(GISJOIN_CTY = stringr::str_sub(GISJOIN, 1, 8)) %>%
   rename(GISJOIN_BLK = GISJOIN)
 
-# 2000-2010 block crosswalk. Currently for single state.
-blk_xwalk <- ipumsr::read_nhgis(
-  here::here("data", "nhgis_blk2000_blk2010_ge_01.zip")
-) %>%
+# 2000-2010 block crosswalk. Currently process for single state:
+blk_xwalks <- list.files(
+  "/pkg/ipums/istads/assets.nhgis.org/htdocs/crosswalks/nhgis_blk2000_blk2010_ge_state/",
+  full.names = TRUE
+)
+
+blk_xwalk <- vroom::vroom(blk_xwalks[2]) %>%
   mutate(
     GISJOIN_2000 = paste0(
       "G",
@@ -53,7 +58,7 @@ blk_xwalk <- ipumsr::read_nhgis(
 # Calculate cty pop ratios from MRSF
 mrsf_ratio <- full_join(mrsf, nhgis_cty_2000) %>%
   mutate(RATIO = POP_MRSF / POP_CTY) %>%
-  filter(STATEA == "01") # Temporary for test state
+  filter(STATEA == "02") # Temporary for test state
 
 # Apply cty pop ratios to 2000 block data
 nhgis_blk_mrsf_adj <- left_join(

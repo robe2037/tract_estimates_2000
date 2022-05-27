@@ -1,13 +1,33 @@
 
-library(dtplyr)
+library(data.table)
 library(tidyverse)
 library(ipumsr)
 
-blk_2000 <- ipumsr::read_nhgis(
-  here::here("data", "nhgis0487_csv.zip"), data_layer = contains("block")
-)
+extents <- get_nhgis_metadata(dataset = "2000_SF1b") %>%
+  pluck("geographic_instances") %>%
+  pull(name)
 
-vars <- get_nhgis_metadata(dataset = "2000_SF1b", ds_table = "NP012D")$variables %>%
+extent <- extents[2]
+
+# 2000 SF1b for block-level Sex/Age/Race
+fp <- define_extract_nhgis(
+  description = "Block counts for tract estimate pipeline",
+  datasets = "2000_SF1b",
+  ds_tables = "NP012D",
+  ds_geog_levels = "block",
+  geographic_extents = extent
+) %>% 
+  submit_extract() %>%
+  wait_for_extract() %>%
+  download_extract(here::here("data", "extracts"))
+
+# For old extracts:
+# fp <- download_extract("nhgis:489", here::here("data","extracts"), overwrite = TRUE)
+
+blk_2000 <- ipumsr::read_nhgis(fp)
+
+vars <- get_nhgis_metadata(dataset = "2000_SF1b", ds_table = "NP012D") %>%
+  pluck("variables") %>%
   separate(description, into = c("RACE", "SEX", "AGEGRP"), sep = " >> ")
 
 # Crosswalks to regroup variables for aggregation
@@ -39,11 +59,10 @@ blk_2000_dt <- blk_2000 %>%
   as.data.table()
 
 blk_2000_dt_agg <- blk_2000_dt[
-  POP != 0
-][
   as.data.table(vars), on = "nhgis_code"
 ][
-  , 
+  POP != 0
+][, 
   .(POP = sum(POP)), 
   by = .(GISJOIN, STATE, STATEA, COUNTY, COUNTYA, SEX, AGEGRP, RACE)
 ]
@@ -52,5 +71,5 @@ blk_2000_dt_agg <- blk_2000_dt[
 
 write_csv(
   as_tibble(blk_2000_dt_agg), 
-  here::here("data", "blk_agg_010.csv")
+  here::here("data", "preproc", "block", paste0("blk_agg_", extent, ".csv"))
 )

@@ -31,23 +31,10 @@ vars <- vars %>%
          SEX = str_sub(SEX, 1, 1),
          RACE = recode(RACE, !!!race_recode))
 
-# Function ---------------------------------------------------------------------
-
-blk_to_cty_mrsf <- function(extent) {
+# Wrapper for downloading and processing of block extracts
+blk_to_cty_mrsf <- function(extract) {
   
-  # Prep data for specified state ---------
-  
-  # 2000 SF1b for block-level Sex/Age/Race
-  fp <- define_extract_nhgis(
-    description = "Block counts for tract estimate pipeline",
-    datasets = "2000_SF1b",
-    ds_tables = "NP012D",
-    ds_geog_levels = "block",
-    geographic_extents = extent
-  ) %>% 
-    submit_extract() %>%
-    wait_for_extract() %>%
-    download_extract(here::here("data", "extracts"))
+  fp <- download_extract(extract) 
   
   blk_2000 <- read_nhgis(fp) %>%
     mutate(across(c(STATEA, COUNTYA), as.character))
@@ -65,9 +52,10 @@ blk_to_cty_mrsf <- function(extent) {
     as.data.table()
   
   blk_2000_dt_agg <- blk_2000_dt[
-    as.data.table(vars), on = "nhgis_code"
+    as.data.table(vars), 
+    on = "nhgis_code"
   ][
-    POP != 0
+    POP != 0 # Remove 0 cases to improve processing. Will add back later.
   ][, 
     .(POP = sum(POP), GISJOIN_CTY = stringr::str_sub(GISJOIN, 1, 8)), 
     by = .(GISJOIN, STATE, STATEA, COUNTY, COUNTYA, SEX, AGEGRP, RACE)
@@ -180,14 +168,44 @@ blk_to_cty_mrsf <- function(extent) {
   
   write_csv(
     mrsf_2000_2010,
-    here::here("data", "preproc", "block", paste0("cty_2010_blk_2000_agg_", extent, ".csv"))
+    here::here(
+      "data", 
+      "preproc", 
+      "block", 
+      paste0(
+        "cty_2010_blk_2000_agg_", extract$geographic_extents, ".csv")
+    )
   )
   
 }
 
-# Create 2010 MRSF from 2000 blocks by state -----------------------------------
+# Processing -------------------------------------------------------------------
 
-tictoc::tic()
-purrr::map("100", blk_to_cty_mrsf)
-tictoc::toc()
+# Generate all extracts
+purrr::walk(
+  extents,
+  ~{
+    ext <- define_extract_nhgis(
+      description = paste0(
+        "Block counts for tract estimate pipeline. Extent: ", 
+        .x
+      ),
+      datasets = "2000_SF1b",
+      ds_tables = "NP012D",
+      ds_geog_levels = "block",
+      geographic_extents = .x
+    )
+    
+    submit_extract(ext)
+    
+    Sys.sleep(1.5) # Avoid API limit of 60 requests per minute.
+  }
+)
+
+# Get all relevant extracts
+extracts <- get_recent_extracts_info_list("nhgis", length(extents))
+
+# Download, process, and save aggregated file
+purrr::walk(extracts, ~blk_to_cty_mrsf(.x))
+
 

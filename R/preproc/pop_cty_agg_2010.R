@@ -5,8 +5,8 @@ library(tidyverse)
 # Load data ----------------------------------
 
 nhgis_cty_2010 <- read_nhgis(
-  here::here("data", "nhgis0482_csv.zip"), 
-  data_layer = contains("2010")
+  here::here("data", "extracts", "nhgis0529_csv.zip"), 
+  data_layer = contains("2010_county")
 )
 
 # Variable recoding --------------------------
@@ -63,4 +63,4 @@ nhgis_cty_2010_agg <- nhgis_cty_2010 %>%
 
 # Write ------------------------------------
 
-write_csv(nhgis_cty_2010_agg, here::here("data", "nhgis_cty_2010_agg.csv"))
+write_csv(nhgis_cty_2010_agg, here::here("data", "preproc", "nhgis_cty_2010_agg.csv"))

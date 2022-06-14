@@ -1,5 +1,5 @@
 
-source(here::here("R", "helpers.R"))
+source(here::here("R", "fun", "helpers.R"))
 
 # Setup ------------------------------------------------------------------------
 
@@ -21,7 +21,7 @@ cum_days <- count_between(
 # Census county estimates ------------------------------------------------------
 
 temp <- list.files(
-  "/pkg/popgis/labpcs/data_projects/tract_estimates/2000_2010/data/popest/", 
+  here::here("data", "raw", "intercensal", "2000"),
   pattern = "*.csv", 
   full.names = TRUE
 )

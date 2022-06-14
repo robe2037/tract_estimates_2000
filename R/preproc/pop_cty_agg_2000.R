@@ -6,8 +6,8 @@ library(tidyverse)
 
 # 2000 county level with 2000 boundaries
 nhgis_cty <- read_nhgis(
-  here::here("data", "nhgis0482_csv.zip"),
-  data_layer = contains("2000")
+  here::here("data", "extracts", "nhgis0529_csv.zip"),
+  data_layer = contains("2000_county")
 )
 
 # Variable recoding --------------------------
@@ -51,5 +51,5 @@ nhgis_cty_agg <- nhgis_cty %>%
 
 # Write ------------------------------------
 
-write_csv(nhgis_cty_agg, here::here("data", "nhgis_cty_2000_agg.csv"))
+write_csv(nhgis_cty_agg, here::here("data", "preproc", "county", "nhgis_cty_2000_agg.csv"))
 

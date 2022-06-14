@@ -3,11 +3,16 @@ library(tidyverse)
 
 # Read MRSF ----------------------
 
-mrsf_dir <- "/pkg/popgis/labpcs/data_projects/tract_estimates/1990_2000/data/popest/modified_race/"
+# mrsf_dir <- "/pkg/popgis/labpcs/data_projects/tract_estimates/1990_2000/data/popest/modified_race/"
+# 
+# fp <- list.files(mrsf_dir, pattern = ".txt", full.names = TRUE)
+# 
+# mrsf_2000 <- read_fwf(fp, fwf_widths(c(2, 3, 1, 2, rep(8, 124), 2, NA)))
 
-fp <- list.files(mrsf_dir, pattern = ".txt", full.names = TRUE)
-
-mrsf_2000 <- read_fwf(fp, fwf_widths(c(2, 3, 1, 2, rep(8, 124), 2, NA)))
+mrsf_2000 <- read_fwf(
+  here::here("data", "raw", "mrsf", "2000", "mr-co.txt"), 
+  fwf_widths(c(2, 3, 1, 2, rep(8, 124), 2, NA))
+)
 
 # Format MRSF --------------------
 
@@ -69,5 +74,5 @@ mrsf_2000_agg <- mrsf_2000 %>%
 
 # Write ------------------------------
 
-write_csv(mrsf_2000_agg, here::here("data", "mrsf_2000_agg.csv"))
+write_csv(mrsf_2000_agg, here::here("data", "preproc", "mrsf", "mrsf_2000_agg.csv"))
 

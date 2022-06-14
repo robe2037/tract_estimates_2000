@@ -14,7 +14,7 @@ cum_days <- count_between(
 # Census county estimates ------------------------------------------------------
 
 census <- vroom::vroom(
-  "/pkg/popgis/labpcs/data_projects/tract_estimates/2010_2019/data/popest/cc-est2019-alldata.csv"
+  here::here("data", "raw", "intercensal", "2010", "cc-est2019-alldata.csv")
 ) %>%
   select(STATE:TOT_FEMALE) %>%
   mutate(GISJOIN = paste0("G", STATE, "0", COUNTY, "0"))

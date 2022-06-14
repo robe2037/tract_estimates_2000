@@ -4,7 +4,10 @@ library(tidyverse)
 
 # Load data ----------------------------------
 
-nhgis_cty_2000_2010 <- read_nhgis(here::here("data", "nhgis0484_csv.zip"))
+nhgis_cty_2000_2010 <- read_nhgis(
+  here::here("data", "extracts", "nhgis0530_csv.zip"),
+  data_layer = contains("county")
+)
 
 tsts <- c("CO7", "CO8", "CO9", "CP0", "CP1", "CP2", "CP3")
 
@@ -55,5 +58,5 @@ nhgis_cty_2000_2010_agg <- nhgis_cty_2000_2010 %>%
 
 write_csv(
   nhgis_cty_2000_2010_agg, 
-  here::here("data", "nhgis_cty_2000_2010_agg_standardized.csv")
+  here::here("data", "preproc", "county", "nhgis_cty_2000_2010_agg_standardized.csv")
 )

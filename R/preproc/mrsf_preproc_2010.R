@@ -3,11 +3,13 @@ library(tidyverse)
 
 # Read MRSF ----------------------
 
-mrsf_dir <- "/pkg/popgis/labpcs/data_projects/tract_estimates/2000_2010/data/popest/modified_race/"
+# mrsf_dir <- "/pkg/popgis/labpcs/data_projects/tract_estimates/2000_2010/data/popest/modified_race/"
 
 # Not sure why files are split or why there is an extra file, but these appear
 # to be the relevant ones:
-mrsf_2010 <- vroom::vroom(list.files(mrsf_dir, full.names = TRUE)[1:2]) %>%
+mrsf_2010 <- vroom::vroom(
+  list.files(here::here("data", "raw", "mrsf", "2010"), full.names = TRUE)[1:2]
+) %>%
   mutate(GISJOIN = paste0("G", STATE, "0", COUNTY, "0")) %>%
   relocate(GISJOIN, .after = SUMLEV)
 
@@ -48,4 +50,4 @@ mrsf_2010_agg <- full_join(mrsf_2010, combos) %>%
 
 # Write ------------------------------
 
-write_csv(mrsf_2010_agg, here::here("data", "mrsf_2010_agg.csv"))
+write_csv(mrsf_2010_agg, here::here("data", "preproc", "mrsf", "mrsf_2010_agg.csv"))

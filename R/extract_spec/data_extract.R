@@ -34,3 +34,24 @@ define_extract_nhgis(
   submit_extract() %>%
   wait_for_extract() %>%
   download_extract(here::here("data", "extracts"))
+
+# 2000 Block level extracts for all state-level extents
+purrr::walk(
+  extents,
+  ~{
+    ext <- define_extract_nhgis(
+      description = paste0(
+        "Block counts for tract estimate pipeline. Extent: ",
+        .x
+      ),
+      datasets = "2000_SF1b",
+      ds_tables = "NP012D",
+      ds_geog_levels = "block",
+      geographic_extents = .x
+    )
+
+    submit_extract(ext)
+
+    Sys.sleep(2) # Avoid API limit of 60 requests per minute.
+  }
+)

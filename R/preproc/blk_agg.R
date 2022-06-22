@@ -1,19 +1,21 @@
 
 library(data.table)
 library(tidyverse)
-library(ipumsr)
+library(ipumsr) # nhgis api dev version
 
 # Setup ------------------------------------------------------------------------
 
+# Vector of all state-level extents for batch processing
 extents <- get_nhgis_metadata(dataset = "2000_SF1b") %>%
   pluck("geographic_instances") %>%
   pull(name)
 
+# Use table metadata to create mapping of NHGIS var codes to demographic
+# categories
 vars <- get_nhgis_metadata(dataset = "2000_SF1b", ds_table = "NP012D") %>%
   pluck("variables") %>%
   separate(description, into = c("RACE", "SEX", "AGEGRP"), sep = " >> ")
 
-# Crosswalks to regroup variables for aggregation
 age_recode <- set_names(
   c("00_04", "05_09", "10_14", "15_19", "15_19", "20_24", "20_24", "20_24",
     "25_29", "30_34", "35_39", "40_44", "45_49", "50_54", "55_59", 
@@ -34,14 +36,16 @@ vars <- vars %>%
 # Wrapper for downloading and processing of block extracts
 blk_to_cty_mrsf <- function(extract) {
   
-  fp <- download_extract(extract) 
+  # Download and read state-level extract for 2000 block data ----
+  
+  fp <- download_extract(extract)
   
   blk_2000 <- read_nhgis(fp) %>%
     mutate(across(c(STATEA, COUNTYA), as.character))
   
   unlink(fp)
   
-  # Aggregate data to new variable levels ----
+  # Aggregate data to new variable groups -----------------------
   
   blk_2000_dt <- blk_2000 %>% 
     pivot_longer(
@@ -67,9 +71,7 @@ blk_to_cty_mrsf <- function(extract) {
   
   state <- unique(nhgis_blk$STATEA)
   
-  # Convert to 2010 boundaries and aggregate to create new MRSF ------------------
-  
-  # Data -------------------------------
+  # Convert to 2010 boundaries and aggregate to create new MRSF ----------------
   
   # 2000 MRSF
   mrsf <- vroom::vroom(
@@ -94,7 +96,7 @@ blk_to_cty_mrsf <- function(extract) {
     select(-STATE, -COUNTY) %>%
     filter(STATEA != "72") # Ignore PR? Not in MRSF.
   
-  # 2000-2010 block crosswalk. Currently process for single state:
+  # 2000-2010 block crosswalk for single state
   blk_xwalk <- list.files(
     "/pkg/ipums/istads/assets.nhgis.org/htdocs/crosswalks/nhgis_blk2000_blk2010_ge_state/",
     pattern = paste0(state, ".zip"),
@@ -123,14 +125,15 @@ blk_to_cty_mrsf <- function(extract) {
     select(-matches("GEOID"))
   
   
-  # Aggregate 2000 blocks to 2010 counties --------
+  # Aggregate 2000 blocks to 2010 county footprints --------
   
-  # Calculate cty pop ratios from MRSF
+  # Calculate cty pop ratios for new race groups from MRSF
   mrsf_ratio <- full_join(mrsf, nhgis_cty_2000) %>%
-    mutate(RATIO = POP_MRSF / POP_CTY) %>%
-    filter(STATEA == state) # subset to state being processed
+    filter(STATEA == state) %>% # subset to state being processed
+    mutate(RATIO = POP_MRSF / POP_CTY)
   
-  # Apply cty pop ratios to 2000 block data
+  # Apply cty pop ratios to 2000 block data to reaggregate 2000 data to
+  # new race groups
   nhgis_blk_mrsf_adj <- left_join(
     nhgis_blk,
     mrsf_ratio, 
@@ -143,7 +146,7 @@ blk_to_cty_mrsf <- function(extract) {
   ) %>%
     mutate(POP_ADJ = POP * RATIO)
   
-  # Sum 2010 block data to 2010 counties
+  # Convert 2000 blocks to 2010 blocks and sum to 2010 counties
   agg <- left_join(
     nhgis_blk_mrsf_adj,
     blk_xwalk,
@@ -161,7 +164,7 @@ blk_to_cty_mrsf <- function(extract) {
     select(GISJOIN, STATEA, COUNTYA, SEX, AGEGRP, RACE) %>%
     distinct() %>%
     full_join(agg) %>%
-    filter(RACE != "other") %>% # MRSF does not include other.
+    filter(RACE != "other") %>% # MRSF does not include other. Should throw this out earlier for processing
     mutate(POP_ADJ = replace_na(POP_ADJ, 0))
   
   # Write ------------------------------------
@@ -179,33 +182,18 @@ blk_to_cty_mrsf <- function(extract) {
   
 }
 
+# Ensure function fails safely if extract or data are not as expected.
+blk_to_cty_mrsf_safe <- purrr::safely(blk_to_cty_mrsf)
+
 # Processing -------------------------------------------------------------------
 
-# Generate all extracts
-purrr::walk(
-  extents,
-  ~{
-    ext <- define_extract_nhgis(
-      description = paste0(
-        "Block counts for tract estimate pipeline. Extent: ", 
-        .x
-      ),
-      datasets = "2000_SF1b",
-      ds_tables = "NP012D",
-      ds_geog_levels = "block",
-      geographic_extents = .x
-    )
-    
-    submit_extract(ext)
-    
-    Sys.sleep(1.5) # Avoid API limit of 60 requests per minute.
-  }
-)
-
-# Get all relevant extracts
+# Other extracts may have been created in the meantime, so this code may not
+# extract the correct extracts for processing. Extracts can be regenerated 
+# using the code in R/extract_spec/data_extract.R
+#
+# Currently, all extracts have description: "Block counts for tract estimate
+# pipeline. Extent: {extent}"
 extracts <- get_recent_extracts_info_list("nhgis", length(extents))
 
-# Download, process, and save aggregated file
-purrr::walk(extracts, ~blk_to_cty_mrsf(.x))
-
-
+# Download, process, and save aggregated file for each state
+purrr::walk(extracts, ~blk_to_cty_mrsf_safe(.x))

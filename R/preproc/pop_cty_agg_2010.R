@@ -56,11 +56,13 @@ nhgis_cty_2010_agg <- nhgis_cty_2010 %>%
     names_to = "nhgis_code",
     values_to = "POP"
   ) %>%
-  left_join(vars) %>%
+  left_join(vars) %>% 
+  filter(!(is.na(SEX) & is.na(RACE) & is.na(AGEGRP))) %>%
   # filter(POP != 0) %>%
   group_by(GISJOIN, STATE, STATEA, COUNTY, COUNTYA, SEX, AGEGRP, RACE) %>%
-  summarize(POP = sum(POP))
+  summarize(POP = sum(POP)) %>%
+  mutate(DATAYEAR = 2010, .after = COUNTYA)
 
 # Write ------------------------------------
 
-write_csv(nhgis_cty_2010_agg, here::here("data", "preproc", "nhgis_cty_2010_agg.csv"))
+write_csv(nhgis_cty_2010_agg, here::here("data", "preproc", "county", "nhgis_cty_2010_agg.csv"))

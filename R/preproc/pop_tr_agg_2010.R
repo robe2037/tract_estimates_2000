@@ -60,7 +60,8 @@ nhgis_tr_agg <- nhgis_tr %>%
   left_join(vars) %>%
   # filter(POP != 0) %>%
   group_by(GISJOIN, STATE, STATEA, COUNTY, COUNTYA, SEX, AGEGRP, RACE) %>%
-  summarize(POP = sum(POP))
+  summarize(POP = sum(POP)) %>%
+  mutate(DATAYEAR = 2010, .after = COUNTYA)
 
 # Write ------------------------------------
 

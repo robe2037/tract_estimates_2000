@@ -1,8 +1,16 @@
 
+# -------------------------------------
+#
+# Log of some extract definitions used for data in the project,
+# if needed for resubmission
+#
+# -------------------------------------
+
 library(ipumsr)
 library(tidyverse)
 
-# 2010-standardized 2000 + 2010 SF1a for Sex/Age/Race
+# 2010-standardized 2000 + 2010 SF1a for Sex/Age/Race --------------------------
+
 define_extract_nhgis(
   description = "County and tract counts for tract estimate pipeline: standardized",
   time_series_tables = c(
@@ -21,7 +29,8 @@ define_extract_nhgis(
   wait_for_extract() %>%
   download_extract(here::here("data", "extracts"))
 
-# 2000 and 2010 non-standardized boundaries at county level.
+# 2000 and 2010 non-standardized boundaries at county level --------------------
+
 define_extract_nhgis(
   description = "County and tract counts for tract estimate pipeline",
   datasets = c("2000_SF1a", "2010_SF1a"),
@@ -35,7 +44,12 @@ define_extract_nhgis(
   wait_for_extract() %>%
   download_extract(here::here("data", "extracts"))
 
-# 2000 Block level extracts for all state-level extents
+# 2000 Block level extracts for all state-level extents ------------------------
+
+extents <- get_nhgis_metadata(dataset = "2000_SF1b") %>%
+  pluck("geographic_instances") %>%
+  pull(name)
+
 purrr::walk(
   extents,
   ~{
@@ -52,6 +66,6 @@ purrr::walk(
 
     submit_extract(ext)
 
-    Sys.sleep(2) # Avoid API limit of 60 requests per minute.
+    Sys.sleep(1) # Avoid API limit of 60 requests per minute.
   }
 )

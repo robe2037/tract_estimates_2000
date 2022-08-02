@@ -70,7 +70,7 @@ census_long <- vroom::vroom(fp) %>%
     SEX = str_sub(SEX, 1, 1)
   ) %>%
   rename(AGEGRP = AGE, POP = value) %>%
-  group_by(GISJOIN, DATE, AGEGRP, RACE, SEX) %>% 
+  group_by(GISJOIN, STATE, COUNTY, DATE, AGEGRP, RACE, SEX) %>% 
   summarize(POP = sum(POP), .groups = "drop") %>%
   arrange(GISJOIN, DATE, SEX, AGEGRP, RACE)
 

@@ -36,7 +36,8 @@
 # except for the fact that the multi-race group is not adjusted further.
 #
 # -------------------------------------
-source(here::here("R", "preproc", "reallocation", "reallocate.R"))
+
+source(here::here("R", "fun", "reallocate.R"))
 
 # Get metadata for relevant tables
 tables <- paste0("P12", LETTERS[1:7])
@@ -121,7 +122,16 @@ tr_realloc <- reallocate_race(
   mutate(GEOGYEAR = 2010) %>%
   select(GISJOIN_TR = GISJOIN_SUB, GISJOIN, STATEA, COUNTYA, DATAYEAR, GEOGYEAR, SEX, AGEGRP, RACE, POP_ADJ = POP_SUB_NEW) %>%
   as_tibble() %>%
-  filter(RACE != "other")
+  filter(RACE != "other") %>%
+  # Recode Bedford City into Bedford County for consistency with annual estimates
+  mutate(
+    GISJOIN_TR = case_when(
+      GISJOIN == "G5105150" ~ "G5100190050100", 
+      TRUE ~ GISJOIN_TR
+    ),
+    GISJOIN = str_sub(GISJOIN_TR, 1, 8),
+    COUNTYA = str_sub(GISJOIN_TR, 5, 7)
+  )
 
 # Write finalized file
 vroom::vroom_write(
@@ -129,4 +139,3 @@ vroom::vroom_write(
   here::here("data", "preproc", "tract", "tract_mrsf_reallocation_2010.csv"),
   delim = ","
 )
-

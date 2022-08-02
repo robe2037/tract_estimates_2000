@@ -11,7 +11,17 @@ library(tidyverse)
 census <- vroom::vroom(
   here::here("data", "raw", "intercensal", "2010", "cc-est2019-alldata.csv")
 ) %>%
-  mutate(GISJOIN = paste0("G", STATE, "0", COUNTY, "0"))
+  mutate(
+    GISJOIN = paste0("G", STATE, "0", COUNTY, "0"),
+    # Recode counties whose FIPS is different in MRSF
+    GISJOIN = case_when(
+      GISJOIN == "G4601020" ~ "G4601130",
+      GISJOIN == "G0201580" ~ "G0202700",
+      TRUE ~ GISJOIN
+    ),
+    STATE = str_sub(GISJOIN, 2, 3),
+    COUNTY = str_sub(GISJOIN, 5, 7)
+  )
 
 race_recode <- set_names(
   c("white", "black", "aian", "asian", "nhopi", "multi"),
@@ -59,15 +69,14 @@ census_long <- census %>%
   pivot_longer(
     cols = contains("MALE"),
     names_to = c("RACE", "SEX"),
-    names_sep = "_"
+    names_sep = "_",
+    values_to = "POP"
   ) %>%
   mutate(
     RACE = recode(RACE, !!!race_recode),
     SEX = str_sub(SEX, 1, 1)
   ) %>%
-  rename(AGEGRP = AGE, POP = value) %>%
-  group_by(GISJOIN, DATE, AGEGRP, RACE, SEX) %>% 
-  summarize(POP2 = sum(POP), .groups = "drop") %>%
+  rename(AGEGRP = AGE) %>%
   relocate(GISJOIN, .before = STATE) %>%
   arrange(GISJOIN, DATE, SEX, AGEGRP, RACE)
 
@@ -75,4 +84,3 @@ write_csv(
   census_long,
   here::here("data", "preproc", "intercensal", "intercensal_preproc_2010.csv")
 )
-

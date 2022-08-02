@@ -38,6 +38,7 @@ combos <- expand(mrsf_2010, GISJOIN, SEX, AGEGRP, IMPRACE, ORIGIN) %>%
 # Aggregate to new variable groups ---
 
 mrsf_2010_agg <- full_join(mrsf_2010, combos) %>%
+  filter(STATE != "72") %>%
   mutate(RESPOP = replace_na(RESPOP, 0),
          IMPRACE = recode(IMPRACE, !!!race_recode),
          SEX = recode(SEX, !!!sex_recode),

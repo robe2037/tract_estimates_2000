@@ -52,22 +52,6 @@ tr_mrsf_2010 <- vroom::vroom(
   select(-DATAYEAR) %>%
   rename(POP_MRSF_2010 = POP_ADJ)
 
-# These values are slightly different from original MRSF because the GEOGYEAR has been changed.
-cty_mrsf_2000 <- tr_mrsf_2000 %>%
-  group_by(GISJOIN, STATEA, COUNTYA, GEOGYEAR, SEX, AGEGRP, RACE) %>%
-  summarize(POP_MRSF_2000 = sum(POP_MRSF_2000), .groups = "drop")
-
-# This produces same result as reading in 2010 MRSF directly as it should.
-cty_mrsf_2010 <- tr_mrsf_2010 %>%
-  group_by(GISJOIN, STATEA, COUNTYA, GEOGYEAR, SEX, AGEGRP, RACE) %>%
-  summarize(POP_MRSF_2010 = sum(POP_MRSF_2010), .groups = "drop")
-
-cty_mrsf <- full_join(
-  cty_mrsf_2000,
-  cty_mrsf_2010,
-  by = c("GISJOIN", "STATEA", "COUNTYA", "GEOGYEAR", "SEX", "AGEGRP", "RACE")
-)
-
 tr_mrsf <- full_join(
   tr_mrsf_2000,
   tr_mrsf_2010,
@@ -80,18 +64,19 @@ census <- vroom::vroom(
 )
 
 cum_days <- count_between(
-  unique(census$DATE),
+  c(unique(census$DATE), "2020-04-01"),
   include_last = TRUE
 )
 
 # Process ----------------------------------------------------------------------
 
-tictoc::tic()
-tr_interp <- purrr::map_dfr(
-  unique(census$STATE),
+states <- unique(census$STATE)
+
+purrr::walk(
+  states,
   function(state) {
     
-    # CCR --------------------------------
+    message("Processing state: ", state)
     
     # Nest census data
     census_nest <- census %>%
@@ -99,7 +84,7 @@ tr_interp <- purrr::map_dfr(
       nest(DATA = c(DATE, POP)) %>%
       select(GISJOIN, AGEGRP, RACE, SEX, DATA)
     
-    # Tract
+    # Tract CCR
     mrsf_tr_ccr <- tr_mrsf %>%
       filter(STATEA == state) %>%
       arrange(GISJOIN_TR, SEX, RACE, AGEGRP) %>%
@@ -116,52 +101,155 @@ tr_interp <- purrr::map_dfr(
       ) %>%
       ungroup()
     
-    tr_final <- compute_ctw(mrsf_tr_ccr)
+    # Tract CTW
+    femyoung_tr <- mrsf_tr_ccr %>%
+      filter(SEX == "F", AGEGRP %in% c("20_24", "25_29", "30_34", "35_39", "40_44")) %>%
+      group_by(GISJOIN_TR, RACE) %>%
+      summarize(POP_FEM_2010 = sum(POP_MRSF_2010),
+                POP_FEM_2020 = sum(POP_2020),
+                .groups = "drop") %>%
+      mutate(AGEGRP = "00_04")
     
-    # County
-    mrsf_cty_ccr <- cty_mrsf %>%  
-      filter(STATEA == state) %>%
-      arrange(GISJOIN, SEX, RACE, AGEGRP) %>%
-      group_by(GISJOIN, SEX, RACE) %>%
+    femold_tr <- mrsf_tr_ccr %>%
+      filter(SEX == "F", AGEGRP %in% c("30_34", "35_39", "40_44", "45_49")) %>%
+      group_by(GISJOIN_TR, RACE) %>%
+      summarize(POP_FEM_2010 = sum(POP_MRSF_2010), 
+                POP_FEM_2020 = sum(POP_2020),
+                .groups = "drop") %>%
+      mutate(AGEGRP = "05_09")
+    
+    fempop_tr <- bind_rows(
+      femyoung_tr,
+      femold_tr
+    )
+    
+    childpop_tr <- mrsf_tr_ccr %>%
+      filter(AGEGRP %in% c("00_04", "05_09")) %>%
+      left_join(fempop_tr, by = c("GISJOIN_TR", "AGEGRP", "RACE")) %>%
       mutate(
-        CCR = POP_MRSF_2010 / lag_agg(POP_MRSF_2000, 2),
-        CCR_CAPPED = ccr_cap(
-          POP_MRSF_2010, 
-          CCR, 
-          breaks = c(0, 25, 100, Inf), 
-          caps = c(1, 2, 2)
-        ),
-        POP_2020 = POP_MRSF_2010 * CCR_CAPPED
-      ) %>%
-      ungroup()
+        CTW = POP_MRSF_2010 / POP_FEM_2010,
+        POP_2020 = POP_FEM_2020 * CTW
+      )
     
-    cty_final <- compute_ctw(mrsf_cty_ccr)
+    # Combine CCR and CTW estimates
+    tr_final <- mrsf_tr_ccr %>%
+      filter(!AGEGRP %in% c("00_04", "05_09")) %>%
+      bind_rows(childpop_tr) %>%
+      replace_na(list(POP_2020 = 0)) %>%
+      arrange(GISJOIN_TR, SEX, AGEGRP, RACE) %>%
+      select(GISJOIN_TR, GISJOIN, STATEA, COUNTYA, GEOGYEAR, SEX, AGEGRP, RACE, POP_MRSF_2010, POP_2020)
     
     # Interpolation ------------------
     
-    cty_interp <- left_join(cty_final, census_nest) %>%
-      mutate(
-        CTY_INTERP = interp(POP_MRSF_2010, POP_2020, cum_days),
-        RATIO_2020 = map2(DATA, CTY_INTERP, ~.x$POP / .y)
-      )
-    
     tr_interp <- tr_final %>%
-      mutate(TRA_INTERP = interp(POP_MRSF_2010, POP_2020, cum_days))
+      mutate(
+        TRA_INTERP = interp(POP_MRSF_2010, POP_2020, cum_days),
+        TRA_INTERP = map(TRA_INTERP, ~.x[-length(.x)]) # We do not want to keep the 2020 estimate since annual estimates stop in 2019
+      ) %>%
+      left_join(census_nest, by = c("GISJOIN", "SEX", "AGEGRP", "RACE")) %>%
+      unnest(cols = c(TRA_INTERP, DATA)) %>%
+      group_by(GISJOIN, STATEA, COUNTYA, GEOGYEAR, SEX, AGEGRP, RACE, DATE) %>%
+      mutate(CTY_INTERP = sum(TRA_INTERP)) %>%
+      ungroup() %>%
+      select(GISJOIN_TR, GISJOIN, COUNTYA, STATEA, GEOGYEAR, SEX, AGEGRP, RACE, DATE, TRA_INTERP, CTY_INTERP, POP)
     
-    tr_interp_adj <- left_join(
-      tr_interp,
-      cty_interp ,
-      by = c("GISJOIN", "SEX", "AGEGRP", "RACE"),
-      suffix = c("_TRACT", "_COUNTY")
+    # POP == 0 -----------
+    
+    # When census county population is 0, we know all contained tracts must
+    # also be 0, so coerce the tract-level interpolation to 0
+    
+    cty_zero <- tr_interp %>%
+      filter(POP == 0) %>%
+      mutate(POP_EST = 0)
+    
+    # CTY_INTERP > 0, POP > 0. Confirm this is correct approach. -----------
+    
+    # When census county population is positive and total interpolated population of its
+    # contained tracts is positive, adjust the tracts each such that their 
+    # relative proportions are maintained but their total sum matches the recorded
+    # county total.
+    
+    tr_pos <- tr_interp %>%
+      filter(CTY_INTERP > 0, POP > 0) %>%
+      mutate(POP_EST = TRA_INTERP * (POP / CTY_INTERP))
+    
+    # CTY_INTERP == 0, POP > 0 -----------
+    
+    # When census county population is positive, but all contained tracts have
+    # 0 population, reallocate the county count to the tracts relative to the
+    # distribution of the total population of the given race (disregarding
+    # age and sex) across the county's tracts.
+    #
+    # If no tracts have any counts for people of that race at any age or
+    # sex, reallocate using the distribution of total tract population instead.
+    
+    tr_race_sums <- tr_interp %>%
+      group_by(GISJOIN_TR, GISJOIN, COUNTYA, STATEA, GEOGYEAR, RACE, DATE) %>%
+      summarize(TOT_TRA_RACE = sum(TRA_INTERP), .groups = "drop") %>%
+      group_by(GISJOIN, COUNTYA, STATEA, GEOGYEAR, RACE, DATE) %>%
+      mutate(PROP_TRA_RACE = TOT_TRA_RACE / sum(TOT_TRA_RACE))
+    
+    tr_tot_sums <- tr_interp %>%
+      group_by(GISJOIN_TR, GISJOIN, COUNTYA, STATEA, GEOGYEAR, DATE) %>%
+      summarize(TOT_TRA_POP = sum(TRA_INTERP), .groups = "drop") %>%
+      group_by(GISJOIN, COUNTYA, STATEA, GEOGYEAR, DATE) %>%
+      mutate(PROP_TRA_POP = TOT_TRA_POP / sum(TOT_TRA_POP))
+    
+    tr_realloc_weights <- full_join(
+      tr_race_sums, 
+      tr_tot_sums, 
+      by = c("GISJOIN_TR", "GISJOIN", "COUNTYA", "STATEA", "GEOGYEAR", "DATE")
     ) %>%
-      mutate(INTERP_ADJ = map2(TRA_INTERP, RATIO_2020, ~.x * .y))# %>%
-    # unnest(c(DATA, INTERP_ADJ)) %>%
-    # select(GISJOIN, GISJOIN_TR, SEX, AGEGRP, RACE, DATE, INTERP_ADJ, 
-    #        POP_2000_TRACT, POP_2010_TRACT, POP_2020_TRACT) %>%
-    # ungroup()
+      mutate(TRA_REALLOC_WT = ifelse(is.nan(PROP_TRA_RACE), PROP_TRA_POP, PROP_TRA_RACE)) %>%
+      select(-c(TOT_TRA_RACE, PROP_TRA_RACE, TOT_TRA_POP, PROP_TRA_POP))
     
-    tr_interp_adj
+    tr_zero <- tr_interp %>%
+      filter(CTY_INTERP == 0, POP > 0) %>%
+      left_join(
+        tr_realloc_weights,
+        by = c("GISJOIN_TR", "GISJOIN", "COUNTYA", "STATEA", "GEOGYEAR", "RACE", "DATE")
+      ) %>%
+      mutate(POP_EST = POP * TRA_REALLOC_WT) %>%
+      select(-TRA_REALLOC_WT)
+    
+    # ---------
+    
+    # Recombine adjusted tract estimates into one source
+    tr_interp_adj <- bind_rows(cty_zero, tr_pos, tr_zero) %>%
+      arrange(GISJOIN, GISJOIN_TR, SEX, AGEGRP, RACE, DATE)
+    
+    # Check:
+    # Tract estimates should sum to the annual county estimate:
+    cty_sums <- tr_interp_adj %>%
+      group_by(GISJOIN, SEX, AGEGRP, RACE, DATE, POP) %>%
+      summarize(s = sum(POP_EST), .groups = "drop") %>%
+      filter(!near(s, POP))
+    
+    if(nrow(cty_sums) != 0) {
+      warning(
+        "State ", state, " had tracts that did not sum to county totals.",
+        call. = FALSE
+      )
+    }
+    
+    if(nrow(tr_interp_adj) != nrow(tr_interp)) {
+      warning(
+        "State ", state, " is missing tracts after adjustment.",
+        " This may be because certain counties do not exist in the annual ",
+        " census data.",
+        call. = FALSE
+      )
+    }
+    
+    tr_interp_adj <- tr_interp_adj %>%
+      select(-c(TRA_INTERP, CTY_INTERP, POP)) %>%
+      filter(lubridate::month(DATE) != 4) # Remove decennials
+    
+    vroom::vroom_write(
+      tr_interp_adj,
+      here::here("data", "output", "interp_2010_2019", paste0("tr_interp_2010_2019_", state, ".csv")),
+      delim = ","
+    )
     
   }
 )
-tictoc::toc()

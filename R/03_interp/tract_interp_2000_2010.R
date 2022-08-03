@@ -4,17 +4,33 @@
 # Interpolate annual estimates for sex / age / race from 2000-2010 at the tract 
 # level for 2010 tract boundaries.
 #
-# For each county / sex / age / race, we interpolate linearly (weighted by
-# number of days between estimates) to get race-adjusted annual
-# estimates. Then, we calculate a ratio of these counts for each year to the 
-# recorded counts in the annual census estimates.
-# 
-# At the tract level, we conduct the same linear day-weighted interpolation
-# and adjust these estimates by multiplying them with the ratios calculated at 
-# the county level.
+# For each tract / sex / age / race, we interpolate linearly (weighted by
+# number of days between estimates) fom 2000 to 2010 to get race-adjusted annual
+# estimates. We then adjust the interpolation to the recorded population
+# estimates in the annual census estimates file. Tract counts have already been
+# reallocated to the race classes present in the MRSF and annual population
+# estimates files.
 #
-# This produces 2000-2010 tract-level annual estimates for race, sex, and age, using
-# the race categories in the MRSF.
+# In cases where the county-level population estimate count is 0, we coerce the
+# interpolated tract estimates to 0 for all tracts within that county.
+#
+# For sex / age / race / date groups where the total interpolated population
+# for all tracts in a county is positive and the county-level population
+# estimate is also positive, we adjust each of the interpolated tract estimates
+# proportionally such that the total interpolated population across all tracts
+# sums to the value listed in the county-level population estimate file.
+#
+# For sex / age / race / date groups where the total interpolated population
+# for all tracts in a county is zero, but the county-level population estimate
+# value is positive, we allocate the total recorded county-level population
+# to all tracts in the county proportional to the tracts' total population for
+# that race (i.e. total population of a given race across all age and sex groups).
+# If 0 total people are recorded for a race group, we allocate the county
+# population value to tracts in proportion to their total populations.
+#
+# This produces tract-level annual estimates that ensure all tracts within
+# counties sum to the population estimate recorded for that sex / age / race / date
+# at the county level.
 #
 # -------------------------------------
 
@@ -22,6 +38,7 @@ source(here::here("R", "fun", "interpolate.R"))
 
 # Data -------------------------------------------------------------------------
 
+# Tract-level counts reallocated to MRSF race categories
 tr_mrsf_2000 <- vroom::vroom(
   here::here("data", "preproc", "tract", "tract_mrsf_reallocation_2000.csv")
 ) %>%
@@ -40,6 +57,7 @@ tr_mrsf <- full_join(
   by = c("GISJOIN_TR", "GISJOIN", "STATEA", "COUNTYA", "GEOGYEAR", "SEX", "AGEGRP", "RACE")
 )
 
+# Annual population estimates
 census <- vroom::vroom(
   here::here("data", "preproc", "intercensal", "intercensal_preproc_2000.csv")
 )
@@ -48,17 +66,20 @@ census_nest <- census %>%
   nest(DATA = c(DATE, POP)) %>%
   select(GISJOIN, AGEGRP, RACE, SEX, DATA)
 
+# Days between recordings for adjusting linear interpolation
+# (decennial counts are in April, annual estimates are in July)
 cum_days <- count_between(
   unique(census$DATE),
   include_last = TRUE
 )
 
-# -----------------
+# Process ----------------------------------------------------------------------
 
+# Process by state
 states <- unique(census$STATE)
 
 purrr::walk(
-  states[41],
+  states,
   function(state) {
     
     message("Processing state: ", state)
@@ -84,7 +105,7 @@ purrr::walk(
       filter(POP == 0) %>%
       mutate(POP_EST = 0)
     
-    # CTY_INTERP > 0, POP > 0. Confirm this is correct approach. -----------
+    # CTY_INTERP > 0, POP > 0 -----------
     
     # When census county population is positive and total interpolated population of its
     # contained tracts is positive, adjust the tracts each such that their 
@@ -134,13 +155,12 @@ purrr::walk(
       mutate(POP_EST = POP * TRA_REALLOC_WT) %>%
       select(-TRA_REALLOC_WT)
     
-    # ---------
+    # Output ----------
     
     # Recombine adjusted tract estimates into one source
     tr_interp_adj <- bind_rows(cty_zero, tr_pos, tr_zero) %>%
       arrange(GISJOIN, GISJOIN_TR, SEX, AGEGRP, RACE, DATE)
     
-    # Check:
     # Tract estimates should sum to the annual county estimate:
     cty_sums <- tr_interp_adj %>%
       group_by(GISJOIN, SEX, AGEGRP, RACE, DATE, POP) %>%
@@ -154,6 +174,7 @@ purrr::walk(
       )
     }
     
+    # All groups should be present in output:
     if(nrow(tr_interp_adj) != nrow(tr_interp)) {
       warning(
         "State ", state, " is missing tracts after adjustment.",

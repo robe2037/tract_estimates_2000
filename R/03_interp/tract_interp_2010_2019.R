@@ -264,8 +264,15 @@ purrr::walk(
     }
     
     tr_interp_adj <- tr_interp_adj %>%
-      select(-c(TRA_INTERP, CTY_INTERP, POP)) %>%
-      filter(lubridate::month(DATE) != 4) # Remove decennials
+      select(-c(GISJOIN, TRA_INTERP, CTY_INTERP, POP)) %>%
+      filter(lubridate::month(DATE) != 4) %>% # Remove decennials
+      rename(GISJOIN = GISJOIN_TR) %>%
+      mutate(
+        TRACTA = stringr::str_sub(GISJOIN, -6),
+        DATAYEAR = lubridate::year(DATE)
+      ) %>%
+      select(GISJOIN, COUNTYA, STATEA, TRACTA, 
+             GEOGYEAR, DATAYEAR, SEX, AGEGRP, RACE, POP_EST)
     
     vroom::vroom_write(
       tr_interp_adj,

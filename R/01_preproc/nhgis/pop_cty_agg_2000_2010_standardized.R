@@ -8,7 +8,11 @@
 # -------------------------------------
 
 library(ipumsr) # nhgis development version
-library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(readr)
+library(stringr)
 
 # Load data ----------------------------------
 

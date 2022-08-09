@@ -6,7 +6,10 @@
 #
 # -------------------------------------
 
-library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(readr)
 
 census <- vroom::vroom(
   here::here("data", "raw", "intercensal", "2010", "cc-est2019-alldata.csv")

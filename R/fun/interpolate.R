@@ -1,5 +1,8 @@
 
-library(tidyverse)
+library(dplyr)
+library(readr)
+library(tidyr)
+library(purrr)
 library(lubridate)
 
 #' Calculate the number of days between each of the dates in a vector of dates

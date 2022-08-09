@@ -8,7 +8,11 @@
 # -------------------------------------
 
 library(ipumsr) # development version
-library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(readr)
+library(stringr)
 
 # Load data ----------------------------------
 
@@ -29,7 +33,7 @@ vars <- purrr::map_dfr(
     meta <- get_nhgis_metadata(dataset = "2010_SF1a", ds_table = t)
     
     variables <- meta$variables
-    desc <- stringr::str_extract(meta$description, "(?<=\\().+(?=\\))")
+    desc <- str_extract(meta$description, "(?<=\\().+(?=\\))")
     
     variables$description <- paste0(variables$description, ": ", desc)
     

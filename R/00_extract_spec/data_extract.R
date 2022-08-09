@@ -7,7 +7,8 @@
 # -------------------------------------
 
 library(ipumsr)
-library(tidyverse)
+library(dplyr)
+library(purrr)
 
 # 2010-standardized 2000 + 2010 SF1a for Sex/Age/Race --------------------------
 

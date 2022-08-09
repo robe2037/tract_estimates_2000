@@ -6,7 +6,10 @@
 #
 # -------------------------------------
 
-library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(readr)
 
 fp <- list.files(
   here::here("data", "raw", "intercensal", "2000"),

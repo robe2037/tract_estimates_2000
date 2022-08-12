@@ -269,10 +269,11 @@ purrr::walk(
       rename(GISJOIN = GISJOIN_TR) %>%
       mutate(
         TRACTA = stringr::str_sub(GISJOIN, -6),
-        DATAYEAR = lubridate::year(DATE)
+        DATAYEAR = lubridate::year(DATE),
+        GEOID = paste0(STATEA, COUNTYA, TRACTA)
       ) %>%
-      select(GISJOIN, COUNTYA, STATEA, TRACTA, 
-             GEOGYEAR, DATAYEAR, SEX, AGEGRP, RACE, POP_EST)
+      select(GISJOIN, GEOID, COUNTYA, STATEA, TRACTA, 
+             GEOGYEAR, DATAYEAR, SEX, AGEGRP, RACE, ESTIMATE = POP_EST)
     
     vroom::vroom_write(
       tr_interp_adj,

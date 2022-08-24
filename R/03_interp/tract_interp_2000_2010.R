@@ -38,33 +38,15 @@ source(here::here("R", "fun", "interpolate.R"))
 
 # Data -------------------------------------------------------------------------
 
-# Tract-level counts reallocated to MRSF race categories
-tr_mrsf_2000 <- vroom::vroom(
-  here::here("data", "preproc", "tract", "tract_mrsf_reallocation_2000.csv")
-) %>%
-  select(-DATAYEAR) %>%
-  rename(POP_MRSF_2000 = POP_ADJ)
-
-tr_mrsf_2010 <- vroom::vroom(
-  here::here("data", "preproc", "tract", "tract_mrsf_reallocation_2010.csv")
-) %>%
-  select(-DATAYEAR) %>%
-  rename(POP_MRSF_2010 = POP_ADJ)
-
-tr_mrsf <- full_join(
-  tr_mrsf_2000,
-  tr_mrsf_2010,
-  by = c("GISJOIN_TR", "GISJOIN", "STATEA", "COUNTYA", "GEOGYEAR", "SEX", "AGEGRP", "RACE")
+# Projected decennial data reallocated to MRSF race groups
+pop_proj <- vroom::vroom(
+  here::here("data", "preproc", "projected", "tr_realloc_proj_2020_pop.csv")
 )
 
 # Annual population estimates
 census <- vroom::vroom(
   here::here("data", "preproc", "intercensal", "intercensal_preproc_2000.csv")
 )
-
-census_nest <- census %>%
-  nest(DATA = c(DATE, POP)) %>%
-  select(GISJOIN, AGEGRP, RACE, SEX, DATA)
 
 # Days between recordings for adjusting linear interpolation
 # (decennial counts are in April, annual estimates are in July)
@@ -84,11 +66,17 @@ purrr::walk(
     
     message("Processing state: ", state)
     
+    # Nest census data
+    census_nest <- census %>%
+      filter(STATE == state) %>%
+      nest(DATA = c(DATE, POP)) %>%
+      select(GISJOIN, AGEGRP, RACE, SEX, DATA)
+    
     # Interpolation -----------------------
     
-    tr_interp <- tr_mrsf %>%
+    tr_interp <- pop_proj %>%
       filter(STATEA == state) %>%
-      mutate(TRA_INTERP = interp(POP_MRSF_2000, POP_MRSF_2010, cum_days)) %>%
+      mutate(TRA_INTERP = interp(POP_2000, POP_2010, cum_days)) %>%
       left_join(census_nest, by = c("GISJOIN", "SEX", "AGEGRP", "RACE")) %>%
       unnest(cols = c(TRA_INTERP, DATA)) %>%
       group_by(GISJOIN, STATEA, COUNTYA, GEOGYEAR, SEX, AGEGRP, RACE, DATE) %>%
@@ -103,7 +91,7 @@ purrr::walk(
     
     cty_zero <- tr_interp %>%
       filter(POP == 0) %>%
-      mutate(POP_EST = 0)
+      mutate(ESTIMATE = 0)
     
     # CTY_INTERP > 0, POP > 0 -----------
     
@@ -114,7 +102,7 @@ purrr::walk(
     
     tr_pos <- tr_interp %>%
       filter(CTY_INTERP > 0, POP > 0) %>%
-      mutate(POP_EST = TRA_INTERP * (POP / CTY_INTERP))
+      mutate(ESTIMATE = TRA_INTERP * (POP / CTY_INTERP))
     
     # CTY_INTERP == 0, POP > 0 -----------
     
@@ -128,23 +116,23 @@ purrr::walk(
     
     tr_race_sums <- tr_interp %>%
       group_by(GISJOIN_TR, GISJOIN, COUNTYA, STATEA, GEOGYEAR, RACE, DATE) %>%
-      summarize(TOT_TRA_RACE = sum(TRA_INTERP), .groups = "drop") %>%
+      summarize(TOT_TRA_POP = sum(TRA_INTERP), .groups = "drop") %>%
       group_by(GISJOIN, COUNTYA, STATEA, GEOGYEAR, RACE, DATE) %>%
-      mutate(PROP_TRA_RACE = TOT_TRA_RACE / sum(TOT_TRA_RACE))
+      mutate(WT = TOT_TRA_POP / sum(TOT_TRA_POP)) %>%
+      select(-TOT_TRA_POP)
     
     tr_tot_sums <- tr_interp %>%
       group_by(GISJOIN_TR, GISJOIN, COUNTYA, STATEA, GEOGYEAR, DATE) %>%
       summarize(TOT_TRA_POP = sum(TRA_INTERP), .groups = "drop") %>%
       group_by(GISJOIN, COUNTYA, STATEA, GEOGYEAR, DATE) %>%
-      mutate(PROP_TRA_POP = TOT_TRA_POP / sum(TOT_TRA_POP))
+      mutate(WT = TOT_TRA_POP / sum(TOT_TRA_POP)) %>%
+      select(-TOT_TRA_POP)
     
-    tr_realloc_weights <- full_join(
-      tr_race_sums, 
+    tr_realloc_weights <- rows_patch(
+      tr_race_sums,
       tr_tot_sums,
       by = c("GISJOIN_TR", "GISJOIN", "COUNTYA", "STATEA", "GEOGYEAR", "DATE")
-    ) %>%
-      mutate(TRA_REALLOC_WT = ifelse(is.nan(PROP_TRA_RACE), PROP_TRA_POP, PROP_TRA_RACE)) %>%
-      select(-c(TOT_TRA_RACE, PROP_TRA_RACE, TOT_TRA_POP, PROP_TRA_POP))
+    )
     
     tr_zero <- tr_interp %>%
       filter(CTY_INTERP == 0, POP > 0) %>%
@@ -152,8 +140,8 @@ purrr::walk(
         tr_realloc_weights,
         by = c("GISJOIN_TR", "GISJOIN", "COUNTYA", "STATEA", "GEOGYEAR", "RACE", "DATE")
       ) %>%
-      mutate(POP_EST = POP * TRA_REALLOC_WT) %>%
-      select(-TRA_REALLOC_WT)
+      mutate(ESTIMATE = POP * WT) %>%
+      select(-WT)
     
     # Output ----------
     
@@ -164,7 +152,7 @@ purrr::walk(
     # Tract estimates should sum to the annual county estimate:
     cty_sums <- tr_interp_adj %>%
       group_by(GISJOIN, SEX, AGEGRP, RACE, DATE, POP) %>%
-      summarize(s = sum(POP_EST), .groups = "drop") %>%
+      summarize(s = sum(ESTIMATE), .groups = "drop") %>%
       filter(!near(s, POP))
     
     if(nrow(cty_sums) != 0) {
@@ -194,11 +182,11 @@ purrr::walk(
         GEOID = paste0(STATEA, COUNTYA, TRACTA)
       ) %>%
       select(GISJOIN, GEOID, COUNTYA, STATEA, TRACTA, 
-             GEOGYEAR, DATAYEAR, SEX, AGEGRP, RACE, ESTIMATE = POP_EST)
+             GEOGYEAR, DATAYEAR, SEX, AGEGRP, RACE, ESTIMATE)
     
     vroom::vroom_write(
       tr_interp_adj,
-      here::here("data", "output", "interp_2000_2010", paste0("tr_interp_2000_2010_", state, ".csv")),
+      here::here("data", "interp", "interp_2000_2010", paste0("tr_interp_2000_2010_", state, ".csv")),
       delim = ","
     )
     

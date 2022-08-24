@@ -114,7 +114,7 @@ lag_agg <- function(x, lag) {
 #'
 #' @return Vector of CCR values as provided in `ccr`, but with appropriate values
 #'   capped.
-ccr_cap <- function(pop, ccr, breaks, caps, nan_cap = 0, inf_cap = NULL) {
+ccr_cap <- function(pop, ccr, breaks, caps, nan_cap = 1, inf_cap = NULL) {
   
   if(is.null(inf_cap)) inf_cap <- caps[length(caps)]
   

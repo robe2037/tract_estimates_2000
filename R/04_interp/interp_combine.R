@@ -14,7 +14,7 @@ library(dplyr)
 
 # County information for joining county/state names to output
 cties <-  vroom::vroom(
-  here::here("data", "preproc", "county", "nhgis_cty_2010_agg.csv")
+  here::here("data", "preproc", "decennial", "county", "nhgis_cty_2010_agg.csv")
 ) %>%
   select(STATEA, STATE, COUNTYA, COUNTY) %>%
   distinct() %>%

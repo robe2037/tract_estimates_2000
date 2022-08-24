@@ -5,6 +5,7 @@ library(tidyr)
 library(purrr)
 library(ipumsr)
 library(data.table)
+library(stringr)
 
 #' Reallocate race counts to MRSF categories
 #' 
@@ -324,7 +325,7 @@ blk_convert_geog <- function(blk_data, blk_xwalk) {
     ,
     `:=`(
       POP_SUB_NEW = POP_SUB_NEW * WEIGHT,
-      GISJOIN_TR = stringr::str_sub(GISJOIN_2010, 1, 14),
+      GISJOIN_TR = str_sub(GISJOIN_2010, 1, 14),
       GISJOIN = str_sub(GISJOIN_2010, 1, 8),
       STATEA = str_sub(GISJOIN_2010, 2, 3),
       COUNTYA = str_sub(GISJOIN_2010, 5, 7),
@@ -465,7 +466,7 @@ blk_convert_geog_batch <- function(extract_numbers, write = TRUE) {
       
       # 2000 county level with 2000 boundaries
       nhgis_cty_2000 <- vroom::vroom(
-        here::here("data", "preproc", "county", "nhgis_cty_2000_agg.csv"),
+        here::here("data", "preproc", "decennial", "county", "nhgis_cty_2000_agg.csv"),
         show_col_types = FALSE
       ) %>%
         rename(POP_CTY = POP) %>%
@@ -509,7 +510,7 @@ blk_convert_geog_batch <- function(extract_numbers, write = TRUE) {
         vroom::vroom_write(
           blk_geog_converted,
           here::here(
-            "data", "preproc", "tract", "states", glue::glue("tract_mrsf_reallocation_2000_state{state}.csv")
+            "data", "realloc", "states", glue::glue("tract_mrsf_reallocation_2000_state{state}.csv")
           ),
           delim = ","
         )

@@ -7,7 +7,7 @@
 #
 # -------------------------------------
 
-library(ipumsr) # nhgis development version
+library(ipumsr)
 library(dplyr)
 library(tidyr)
 library(purrr)
@@ -77,4 +77,4 @@ nhgis_cty_2010_agg <- nhgis_cty_2010 %>%
 
 # Write ------------------------------------
 
-write_csv(nhgis_cty_2010_agg, here::here("data", "preproc", "county", "nhgis_cty_2010_agg.csv"))
+write_csv(nhgis_cty_2010_agg, here::here("data", "preproc", "decennial", "county", "nhgis_cty_2010_agg.csv"))

@@ -60,7 +60,7 @@ source(here::here("R", "fun", "interpolate.R"))
 
 # Projected decennial data reallocated to MRSF race groups
 pop_proj <- vroom::vroom(
-  here::here("data", "preproc", "projected", "tr_realloc_proj_2020_pop.csv")
+  here::here("data", "projected", "tr_realloc_proj_2020_pop.csv")
 )
 
 # Annual population estimates

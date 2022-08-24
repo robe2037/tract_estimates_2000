@@ -1,13 +1,13 @@
 
 # -------------------------------------
 #
-# Read in decennial county data for 2000 (based on 2000 boundaries), 
+# Read in decennial tract data for 2000 (based on 2000 boundaries), 
 # aggregate demographic categories, and
 # convert to long format by county, age, sex, and race.
 #
 # -------------------------------------
 
-library(ipumsr) # development version
+library(ipumsr)
 library(dplyr)
 library(tidyr)
 library(purrr)
@@ -16,10 +16,10 @@ library(stringr)
 
 # Load data ----------------------------------
 
-# 2000 county level with 2000 boundaries
-nhgis_cty <- read_nhgis(
+# 2000 tract level with 2000 boundaries
+nhgis_tr <- read_nhgis(
   here::here("data", "extracts", "nhgis0529_csv.zip"),
-  data_layer = contains("2000_county")
+  data_layer = contains("2000_tract")
 )
 
 # Variable recoding --------------------------
@@ -28,7 +28,7 @@ ds_meta <- get_nhgis_metadata(dataset = "2000_SF1a", ds_table = "NP012D")
 
 vars <- ds_meta$variables %>%
   separate(description, into = c("RACE", "SEX", "AGEGRP"), sep = " >> ")
-  
+
 # Crosswalks to regroup variables for aggregation
 age_recode <- set_names(
   c("00_04", "05_09", "10_14", "15_19", "15_19", "20_24", "20_24", "20_24",
@@ -49,12 +49,12 @@ vars <- vars %>%
 
 # Aggregate data to new variable levels ----
 
-nhgis_cty_agg <- nhgis_cty %>% 
+nhgis_tr_agg <- nhgis_tr %>% 
   pivot_longer(
-  cols = matches(paste0("^", ds_meta$nhgis_code)),
-  names_to = "nhgis_code",
-  values_to = "POP"
-) %>%
+    cols = matches(paste0("^", ds_meta$nhgis_code)),
+    names_to = "nhgis_code",
+    values_to = "POP"
+  ) %>%
   left_join(vars) %>%
   # filter(POP != 0) %>%
   group_by(GISJOIN, STATE, STATEA, COUNTY, COUNTYA, SEX, AGEGRP, RACE) %>%
@@ -63,5 +63,5 @@ nhgis_cty_agg <- nhgis_cty %>%
 
 # Write ------------------------------------
 
-write_csv(nhgis_cty_agg, here::here("data", "preproc", "county", "nhgis_cty_2000_agg.csv"))
+write_csv(nhgis_tr_agg, here::here("data", "preproc", "decennial", "tract", "nhgis_tr_2000_agg.csv"))
 

@@ -1,13 +1,13 @@
 
 # -------------------------------------
 #
-# Read in decennial tract data for 2000 and 2010 (standardized to 2010 boundaries), 
+# Read in decennial county data for 2000 and 2010 (standardized to 2010 boundaries), 
 # aggregate demographic categories, and
 # convert to long format by county, age, sex, and race.
 #
 # -------------------------------------
 
-library(ipumsr) # development version
+library(ipumsr)
 library(dplyr)
 library(tidyr)
 library(purrr)
@@ -16,9 +16,9 @@ library(stringr)
 
 # Load data ----------------------------------
 
-nhgis_tr_2000_2010 <- read_nhgis(
+nhgis_cty_2000_2010 <- read_nhgis(
   here::here("data", "extracts", "nhgis0530_csv.zip"),
-  data_layer = contains("tract")
+  data_layer = contains("county")
 )
 
 tsts <- c("CO7", "CO8", "CO9", "CP0", "CP1", "CP2", "CP3")
@@ -31,7 +31,7 @@ vars <- purrr::map_dfr(
   ~get_nhgis_metadata(time_series_table = .x)$time_series %>%
     mutate(name = paste0(.x, name))
 ) %>%
-  mutate(description = str_replace(description, "65 and 69", "67 to 69")) %>% # I think this is an error in NHGIS coding in one table?
+  mutate(description = str_replace(description, "65 and 69", "67 to 69")) %>% # I think this is an error in NHGIS coding in one table? Check if fixed
   separate(description, into = c("RACE", "SEX", "AGEGRP"), sep = " ~ ")
 
 # Crosswalks to regroup variables for aggregation
@@ -55,7 +55,7 @@ vars <- vars %>%
 # Aggregate data to new variable levels ----
 
 # Convert data to long format and attach variable names from metadata
-nhgis_tr_2000_2010_agg <- nhgis_tr_2000_2010 %>%
+nhgis_cty_2000_2010_agg <- nhgis_cty_2000_2010 %>%
   pivot_longer(
     cols = matches("^CO[0-9]|^CP[0-9]"), 
     names_to = "VAR", 
@@ -69,6 +69,6 @@ nhgis_tr_2000_2010_agg <- nhgis_tr_2000_2010 %>%
 # Write ------------------------------------
 
 write_csv(
-  nhgis_tr_2000_2010_agg,
-  here::here("data", "preproc", "tract", "nhgis_tr_2000_2010_agg_standardized.csv")
+  nhgis_cty_2000_2010_agg, 
+  here::here("data", "preproc", "decennial", "county", "nhgis_cty_2000_2010_agg_standardized.csv")
 )

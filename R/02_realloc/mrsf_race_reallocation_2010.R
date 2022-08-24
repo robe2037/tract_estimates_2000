@@ -93,7 +93,7 @@ mrsf <- vroom::vroom(
 
 # 2010 county level with 2010 boundaries
 nhgis_cty_2010 <- vroom::vroom(
-  here::here("data", "preproc", "county", "nhgis_cty_2010_agg.csv")
+  here::here("data", "preproc", "decennial", "county", "nhgis_cty_2010_agg.csv")
 ) %>%
   rename(POP_CTY = POP) %>%
   select(-STATE, -COUNTY) %>%
@@ -136,6 +136,6 @@ tr_realloc <- reallocate_race(
 # Write finalized file
 vroom::vroom_write(
   tr_realloc,
-  here::here("data", "preproc", "tract", "tract_mrsf_reallocation_2010.csv"),
+  here::here("data", "realloc", "tract_mrsf_reallocation_2010.csv"),
   delim = ","
 )

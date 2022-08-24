@@ -44,13 +44,13 @@ source(here::here("R", "fun", "interpolate.R"))
 # Tract-level counts reallocated to MRSF race categories for 2000 and 2010
 
 tr_realloc_2000 <- vroom::vroom(
-  here::here("data", "preproc", "tract", "tract_mrsf_reallocation_2000.csv")
+  here::here("data", "realloc", "tract_mrsf_reallocation_2000.csv")
 ) %>%
   select(-DATAYEAR) %>%
   rename(POP_2000 = POP_ADJ)
 
 tr_realloc_2010 <- vroom::vroom(
-  here::here("data", "preproc", "tract", "tract_mrsf_reallocation_2010.csv")
+  here::here("data", "realloc", "tract_mrsf_reallocation_2010.csv")
 ) %>%
   select(-DATAYEAR) %>%
   rename(POP_2010 = POP_ADJ)
@@ -277,6 +277,6 @@ pop_2020_proj <- rows_patch(
 
 vroom::vroom_write(
   pop_2020_proj,
-  here::here("data", "preproc", "projected", "tr_realloc_proj_2020_pop.csv"),
+  here::here("data", "projected", "tr_realloc_proj_2020_pop.csv"),
   delim = ","
 )

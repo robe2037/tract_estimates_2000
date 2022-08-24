@@ -72,7 +72,7 @@ blk_convert_geog_batch(extract_numbers = nos)
 # Aggregate identical 2010 tract ids that are present in multiple states because
 # of boundary changes between 2000 and 2010
 tmp <- vroom::vroom(
-  list.files(here::here("data", "preproc", "tract", "states"), full.names = TRUE)
+  list.files(here::here("data", "realloc", "states"), full.names = TRUE)
 ) %>% 
   group_by(GISJOIN_TR, GISJOIN, STATEA, COUNTYA, DATAYEAR, GEOGYEAR, SEX, AGEGRP, RACE) %>%
   summarize(POP_ADJ = sum(POP_ADJ), .groups = "drop") %>%
@@ -82,14 +82,14 @@ tmp <- vroom::vroom(
       GISJOIN == "G5105150" ~ "G5100190050100", 
       TRUE ~ GISJOIN_TR
     ),
-    GISJOIN = str_sub(GISJOIN_TR, 1, 8),
-    COUNTYA = str_sub(GISJOIN_TR, 5, 7)
+    GISJOIN = stringr::str_sub(GISJOIN_TR, 1, 8),
+    COUNTYA = stringr::str_sub(GISJOIN_TR, 5, 7)
   )
 
 # Write finalized file
 vroom::vroom_write(
   tmp,
-  here::here("data", "preproc", "tract", "tract_mrsf_reallocation_2000.csv"),
+  here::here("data", "realloc", "tract_mrsf_reallocation_2000.csv"),
   delim = ","
 )
 

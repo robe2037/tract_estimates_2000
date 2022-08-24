@@ -23,7 +23,7 @@ Decennial data are obtained from NHGIS and stored in compressed extract files in
 
 ### Preprocessing
 
-Raw files for all three sources are converted to a consistent long format. Preprocessed files are stored in `/data/preproc`.
+Raw files for all three sources are converted to a consistent long format. Preprocessing scripts are found in `/R/01_preproc`. Preprocessed files are stored in `/data/preproc`.
 
 ### Race Category Reallocation
 
@@ -58,7 +58,7 @@ The 2000 data are reallocated as described for 2010. However, 2000 tract data ne
 
 We then convert 2000 block counts to 2010 block counts using the 2000 block to 2010 block crosswalk provided by NHGIS. At this point, we aggregate the counts at the 2010 block level to 2010 tracts to obtain reallocated 2000 data for 2010 tract boundaries.
 
-Reallocated data are found in `/data/realloc`. 2000 data are batch processed by state, with intermediate output stored in `/data/realloc/states`.
+Reallocation scripts are found in `/R/02_realloc`. Reallocated data are found in `/data/realloc`. 2000 data are batch processed by state, with intermediate output stored in `/data/realloc/states`.
 
 ### 2020 Population Projection
 
@@ -76,7 +76,7 @@ In cases where the CTW is undefined (because there is no mother-aged population 
 
 Note that mothers obviously need not be the same race as children, but this restriction was placed to enable these calculations at the sex by age by race level.
 
-We combine the 2020 population projections obtained via CCR and CTW into a final data source for use in interpolation to obtain annual population estimates. These data are stored in `/data/projected`.
+We combine the 2020 population projections obtained via CCR and CTW into a final data source for use in interpolation to obtain annual population estimates. Projection scripts are found in `/R/03_project` and data are stored in `/data/projected`.
 
 ### Annual Estimate Interpolation
 
@@ -91,6 +91,10 @@ In some cases, the annual estimates for a county suggest that some persons of a 
 In the cases where no persons of a given race were recorded at any sex and age group, we use the total population of each tract within the county to re-distribute the recorded county-level count.
 
 For 2010-2020, we use the projected 2020 population as our ending point for the interpolation and proceed as described above. However, we discard estimates after 2019, which is the latest year for which annual county-level estimates are available. Similarly, decennial data are not included in the output files, even in years where both a decennial and annual estimate are recorded. Therefore, data listed as originating from 2000 represent the estimated tract-level annual estimate for 2000, not a value obtained from the 2000 decennial census.
+
+Scripts for annual estimate interpolation are found in `/R/04_interp`, with single-decade data stored in `/data/interp`
+
+We combine the 2000 to 2010 and 2010 to 2019 time series for each tract into a single time series spanning 2000 to 2019. Final output data are provided by state and found in `/data/popest`.
 
 ### Notes
 

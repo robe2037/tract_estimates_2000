@@ -80,7 +80,7 @@ In cases where the CTW is undefined (because there is no mother-aged population 
 
 We combine the 2020 population projections obtained via CCR and CTW into a final data source for use in interpolation to obtain annual population estimates. Projection scripts are found in `/R/03_project` and intermediate data are stored in `/data/projected`.
 
-### Annual Estimate Interpolation
+### 4. Annual Estimate Interpolation
 
 Finally, we generate annual estimates at the tract level by interpolating between either the 2000 and 2010 decennial counts or the 2010 and projected 2020 counts for each sex by age by race group.
 

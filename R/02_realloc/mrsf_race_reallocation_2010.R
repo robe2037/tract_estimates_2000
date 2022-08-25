@@ -30,7 +30,7 @@
 #
 # In these cases, we reduce each tract's multi-race population in proportion to
 # the decrease in this group between the MRSF and decennial data for a given
-# county, sex, and age. Then, the remaining multi-race population for each tract
+# county, sex, and age. Then, the difference in multi-race population for each tract
 # is added to that tract's other population to determine the total reallocation
 # population for that tract. The reallocation procedure then proceeds as above,
 # except for the fact that the multi-race group is not adjusted further.

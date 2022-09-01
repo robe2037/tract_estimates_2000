@@ -66,35 +66,35 @@ Reallocation scripts are found in `/R/02_realloc`, and intermediate reallocated 
 
 ### 3. 2020 Population Projection
 
-Producing annual estimates requires interpolating between starting and ending decennial counts, but 2020 data for the age by sex by race breakdown have not been released at the time this was written. Therefore, we must generate projected 2020 population counts for sex by age by race at the tract level. We follow the Hamilton-Perry method described in [Swanson (2010)](https://link.springer.com/article/10.1007/s11113-009-9144-7) to generate these projections.
+Producing annual estimates requires interpolating between starting and ending decennial counts, but 2020 data for sex by age by race combinations have not been released at the time this was written. Therefore, we must generate projected 2020 population counts for sex by age by race at the tract level. We follow the Hamilton-Perry method described in [Swanson (2010)](https://link.springer.com/article/10.1007/s11113-009-9144-7) to generate these projections.
 
-We use 2000 and 2010 decennial counts to generate cohort change ratios (CCRs) for each sex by race group. CCRs are calculated as the ratio of the population of a given age group in a given decennial census to the 10-years-younger population in the previous decennial census.
+We use 2000 and 2010 SF1 counts, standardized to 2010 geographic units, to generate cohort change ratios (CCRs) for each sex by age by race group. CCRs are the ratio of the population of a given sex by age by race group in a given decennial census to the 10-years-younger population in the previous decennial census.
 
-In cases where counts are too small to enable the calculation of a CCR (CCRs are undefined when any cohort's starting population in 2000 is 0), we aggregate to the tract by sex level and calculate CCRs for each tract by sex cohort. For cases where CCRs are still undefined, we use CCRs calculated at the county by sex level. There are a small number of remaining cases where CCRs are still undefined even at the county by sex level (special cases of Loving County, TX, and Kalawao County, HI). In these cases, we artificially set the undefined CCRs to 1.
+In cases where counts are too small to enable the calculation of a CCR (CCRs are undefined when any cohort's starting population in 2000 is 0), we aggregate to the tract by sex by age level and calculate CCRs for each tract by sex by age cohort. For cases where CCRs are still undefined, we use CCRs calculated at the county by sex by age level. There are a small number of remaining cases where CCRs are still undefined even at the county by sex by age level (special cases of Loving County, TX, and Kalawao County, HI). In these cases, we artificially set the undefined CCRs to 1. (DVR: I don't know if Github markdown supports footnotes, but we could put the special cases bit in a footnote and add a bit more detail)
 
-CCRs for small-population areas have the potential to be highly variable. Per Swanson (2010), we place a floor of 0.82 (2% reduction rate over 10 years) and a ceiling of 1.63 (5% growth rate over 10 years) on all CCRs. Any CCRs lower than the floor value or higher than the ceiling value are replaced with the floor or ceiling value, respectively.
+CCRs for small-population areas may be highly variable. Per Swanson (2010), we place a floor of 0.82 (2% annual reduction rate over 10 years) and a ceiling of 1.63 (5% annual growth rate over 10 years) on all CCRs. Any CCRs lower than the floor value or higher than the ceiling value are replaced with the floor or ceiling value, respectively.
 
-CCRs are not defined for age groups under 10. In these cases, we calculate the ratio of the 0-5 year-old and 5-10 year-old populations to the female mother-aged population at the tract by sex by race level. This child-to-woman (CTW) ratio is multiplied by the projected 2020 mother-aged population (obtained using CCRs) to generate an projection for the 2020 population of the 0-5 and 5-10 age groups. 
+CCRs are not defined for age groups under 10. In these cases, we calculate the ratio of the 0-5 year-old and 5-10 year-old populations to the females of child-bearing age population at the tract by sex by race level. This child-to-woman (CTW) ratio is multiplied by the projected 2020 females of child-bearing age population (obtained using CCRs) to generate a projection for the 2020 population of the 0-5 and 5-10 age groups. 
 
-For projecting the population of children aged 0-4, the eligible mother population is the total population of all females of the given race between ages 20-45. For projecting the population of children aged 5-10, the eligible mother population is the total population of all females of the given race between 30-50. While mothers obviously do not need to be the same race as children, this restriction was necessary to enable the calculation of approximate rates at the sex by age by race level.
+For projecting the population of children aged 0-4, we use the count of all females of the given race between the ages of 20-45. For projecting the population of children aged 5-10, we use the count of all females of the given race between 30-50. While mothers obviously do not need to be the same race as children, this restriction was necessary to enable the calculation of approximate rates at the sex by age by race level.
 
-In cases where the CTW is undefined (because there is no mother-aged population for a given tract, sex, and race), we use the CTWs calculated for tract by sex groups or, if still undefined, county by sex groups. 
+In cases where the CTW is undefined (because there is no females of child-bearing age for a given tract and race), we use the CTWs calculated for tract by sex groups or, if still undefined, county by sex groups. 
 
 We combine the 2020 population projections obtained via CCR and CTW into a final data source for use in interpolation to obtain annual population estimates. Projection scripts are found in `/R/03_project` and intermediate data are stored in `/data/projected`.
 
-### 4. Annual Estimate Interpolation
+### 4. Annual Census Tract Estimate Interpolation
 
-Finally, we generate annual estimates at the tract level by interpolating between either the 2000 and 2010 decennial counts or the 2010 and projected 2020 counts for each sex by age by race group.
+Finally, we generate annual population estimates at the tract level by interpolating between either the 2000 and 2010 SF1 counts or the 2010 SF1 and projected 2020 counts for each sex by age by race group.
 
-For 2000-2010, we linearly interpolate between the 2000 and 2010 population for each tract, accounting for the fact that annual estimates are released on July 1 of each year while decennial estimates are released on April 1.
+For 2000-2010, we linearly interpolate between the 2000 and 2010 count for each tract by sex by age by race combination, accounting for the fact that annual estimates are released on July 1 of each year while decennial counts are released on April 1.
 
-The interpolated values for all tracts in a given county will not necessarily sum to match the recorded annual estimate for that county. Therefore, we adjust all tracts within a county upward or downward to ensure that county-level counts are consistent with the counts of their contained tracts. This also causes tract-level estimates to follow the general trajectory of the county-level trend.
+The interpolated values for all tracts in a given county will not necessarily sum to the annual estimate for that county. Therefore, we adjust all tracts within a county upward or downward to ensure that county-level counts are consistent with the counts of their contained tracts. This adjustment also causes tract-level estimates to follow the general trajectory of the county-level trend.
 
 In some cases, the annual estimates for a county suggest that some persons of a given sex, age, and race group were counted in that county, but no tracts within that county have any counts for that group after interpolation. In these cases, we allocate the county-level counts for a given sex, age, and race group to the tracts relative to the distribution of the total population of that race (disregarding sex and age) across the county's tracts
 
-In the cases where no persons of a given race were recorded at _any_ sex and age group, we use the total population of each tract within the county to re-distribute the recorded county-level count.
+In the cases where no persons of a given race were recorded for _any_ sex and age groups, we use the total population of each tract within the county to re-distribute the recorded county-level count.
 
-For 2010-2020, we use the projected 2020 population as our ending point for the interpolation and proceed as described above. However, we discard estimates after 2019, which is the latest year for which annual county-level estimates are available. 
+For 2010-2020, we use the projected 2020 population as our end point for the interpolation and proceed as described above. However, we discard estimates after 2019, which is the latest year for which annual county estimates are available. 
 
 Decennial counts are not included in the output files, even in years where both a decennial and annual estimate are recorded. Therefore, data listed as originating from 2000 represent the estimated tract-level _annual estimate_ for 2000, not the count recorded in the 2000 decennial census.
 

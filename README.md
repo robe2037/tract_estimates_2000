@@ -7,19 +7,19 @@ This repository contains code to produce tract-level annual population estimates
 
 The processing pipeline uses data from the following sources:
 
-* Decennial data
-  * 2000 SF1 at county and tract level
-  * 2010 SF1 at county and tract level
-* Intercensal data
-  * Data provided for 2000-2010 and 2010-2019
-  * Includes restricted race category groups excluding "some other race"
+* Decennial census data
+  * 2000 Summary File (SF) 1 for counties and census blocks (DVR: we use block data from 2000 - we stopped using tracts, correct?)
+  * 2010 Summary File (SF) 1 for counties and census tracts
+* Population estimates data 
+  * Data provided for 2000-2010 (intercensal estimates) and 2010-2019 (vintage 2019)
+  * Has no "some other race" category
 * Modified Race Summary File (MRSF) data
   * Provided for 2000 and 2010
-  * Includes restricted race category groups excluding "some other race"
- 
+  * Has no "some other race" category
+
 Raw, intermediate, and output data files are not pushed to GitHub, but are assumed to exist in the `/data` directory in the local repository. 
 
-The raw formatted data for annual estimates and MRSF files are stored in `/data/raw`. Decennial data are obtained from NHGIS and stored in compressed extract files in `/data/extracts`. Code for generating these extracts is given in `/R/00_extract/data_extract.R`
+The raw formatted data for annual population estimates and MRSF files are stored in `/data/raw`. Decennial data are obtained from NHGIS and stored in compressed extract files in `/data/extracts`. Code for generating these extracts is given in `/R/00_extract/data_extract.R`
 
 ## Processing pipeline
 
@@ -31,34 +31,36 @@ Preprocessing scripts for all data sources are found in `/R/01_preproc`. Preproc
 
 ### 2. Race Category Reallocation
 
-The decennial data include an "other race" category when counting persons by race, but this category is not included in the MRSF or annual county estimates. We reconcile this discrepancy by reallocating the listed other-race counts in the decennial data to the race categories present in the other sources. The final categories are:
+The decennial data include a "some other race" category when reporting counts of persons by race, but this category is not included in the MRSF or annual population estimates. The MRSF and annual population estimates use the Office of Management and Budget (OMB) [standard race and ethnicity categories](https://orwh.od.nih.gov/toolkit/other-relevant-federal-policies/OMB-standards). "Some other race" is not a standard OMB category but is used by the Census Bureau on the decennial questionnaires. The MRSF is created by allocating all persons who identify as "some other race" to one of the OMB standard race categories or to the "Two or more race" category (note that the OMB standard allows individuals to select one or more races). MAYBE ADD A SENTENCE SUMMARIZING HOW THE ALLOCATION IS DONE FOR MRSF. The annual population estimates data starts with the MRSF counts; therefore, the annual population estimates also excludes the "some other race" category.
+
+We reconcile this discrepancy by reallocating the "some other race" counts in the decennial data to the race categories present in the other sources. The final categories are:
 
 * White alone
 * Black alone
 * Asian alone
 * American Indian / Alaska Native alone
 * Native Hawaiian / Pacific Islander alone
-* Multiple races
+* Two or more races (DVR: just editing to make consistent with census terminology)
 
-To conduct this reallocation, we compare the county-level counts in the decennial data to the counts in the MRSF for each sex, age, and race group. The MRSF counts for each of the race categories listed above will reflect the original counts plus the number of other-race persons who were reclassified to one of the above categories in the creation of the MRSF. The approach differs slightly for the 2010 and 2000 data.
+To conduct this reallocation, we compare the county-level counts in the SF1 data to the counts in the MRSF for each sex, age, and race group. The MRSF counts for each of the race categories listed above will reflect the original counts plus the number of persons identifying as "some other race" who were reclassified to one of the above categories in the creation of the MRSF. The reallocation approach differs slightly for the 2010 and 2000 data.
 
 #### 2010 Data
 
-For each tract within a county, we reallocate all other-race persons (for a given age and sex) listed in that tract's decennial data to each of the MRSF race categories in the same proportion as was present for each race for the county to which that tract belongs.
+For each tract within a county, we reallocate all "some other race"" persons (for a given age and sex) listed in that tract's SF1 data to each of the MRSF race categories in the same proportion as was present for each race (DVR: we use the given age and sex here as well? May be worth adding that parenthetical again for clarity) for the county to which that tract belongs.
 
-For instance, if 50 other-race persons (for a given age and sex) were recorded in the county-level decennial data and the MRSF counts show an increase in 20 people listed as White alone, 20 people listed as Black alone, and 10 people listed as Asian alone, then 40% of each tract's other-race count would be reallocated to that tract's White alone and Black alone counts, and the remaining 20% would be reallocated to that tract's Asian alone count.
+For instance, if 50 "some other race"" persons (for a given age and sex) were recorded in the county-level decennial data and the MRSF counts show an increase in 20 people listed as White alone, 20 people listed as Black alone, and 10 people listed as Asian alone, then 40% of each tract's "some other race"" count would be reallocated to that tract's White alone and Black alone counts, and the remaining 20% would be reallocated to that tract's Asian alone count.
 
-In general, the count of persons listed as multiple races in the decennial data is equal to or larger than the count of persons listed as multiple races in the MRSF. In these cases, we treat the multiple-race category similarly to the single-race categories, reallocaating other-race counts to it proportionally to the increase in the multi-race count at the county level.
+In general, the count of persons listed as multiple races in the decennial data is equal to or larger than the count of persons listed as multiple races in the MRSF. In these cases, we treat the multiple-race category similarly to the single-race categories, reallocating "some other race" counts to it proportional to the increase in the multi-race count at the county level.
 
-However, in some cases, the count for the multi-race category is smaller in the MRSF than in the decennial data (in addition to other-race records, multi-race records may be reclassified to single-race categories in the process of making the MRSF file). In these cases, there are more individuals that need to be reallocated than listed in the other-race category alone, but it is not possible to determine exactly how many people need to be reallocated, since the counts in the multi-race category reflect both reclassifications of multi-race individuals to single-race categories as well as the reclassification of other-race individuals to the multi-race category.
+However, in some cases, the count for the multi-race category is smaller in the MRSF than in the SF1 data (in addition to "some other race"" records, multi-race records may be reclassified to single-race categories in the process of making the MRSF file). In these cases, there are more individuals that need to be reallocated than listed solely in the "some other race" category. Yet, we cannot exactly how many people need to be reallocated, since the counts in the MRSF's multi-race category reflect both reclassifications of multi-race individuals to single-race categories as well as the reclassification of "some other race" individuals to the multi-race category.
 
-In these cases, we first reduce each tract's multi-race population (for a given age and sex) in proportion to the decrease in multi-race population at the county level between the decennial and MRSF data. The amount of decrease in the multi-race population count is then added to the listed other-race count to determine the total reallocation population for that tract. The reallocation process then proceeds as described above, except that the total reallocation population is only distributed to the single-race counts, not the multi-race count (which has already been adjusted).
+In these cases, we first reduce each tract's multi-race population (for a given age and sex) in proportion to the decrease in multi-race population at the county level between the SF1 and MRSF data. The amount of decrease in the multi-race population count is then added to the SF1 "some other race" count to determine the tract's final count for reallocation. The reallocation process then proceeds as described above, except that the final reallocation count is only distributed among single-race categories, not the multi-race category (which has already been adjusted).
 
 #### 2000 Data
 
-The 2000 decennial tract data require the same processing as above, but alaso need to be standardized to 2010 tract boundaries. Therefore, for 2000, we first reallocate the decennial race categories at the _block_, rather than tract level (still using reallocation population proportions from the county containing each block).
+The 2000 SF1 data require the same processing as above, but also need to be standardized to 2010 tract boundaries. Therefore, for 2000, we first reallocate the SF1 race categories at the _block_, rather than tract level (still using reallocation population proportions from the county containing each block).
 
-We then convert 2000 block counts to 2010 block counts using the [2000 block to 2010 block crosswalk](https://www.nhgis.org/geographic-crosswalks#download-from-blocks) provided by NHGIS. At this point, we aggregate the counts at the 2010 block level to 2010 tracts to obtain reallocated 2000 data for 2010 tract boundaries. A zipped copy of the crosswalk is stored in `/data/raw/xwalk`
+We then convert 2000 block counts onto 2010 blocks using the [2000 block to 2010 block crosswalk](https://www.nhgis.org/geographic-crosswalks#download-from-blocks) provided by NHGIS. We then aggregate these counts from the 2010 blocks to 2010 tracts to obtain reallocated 2000 data for 2010 tract boundaries. A zipped copy of the crosswalk is stored in `/data/raw/xwalk`
 
 Reallocation scripts are found in `/R/02_realloc`, and intermediate reallocated data are stored in `/data/realloc`. 2000 data are batch processed by state, with state-level output stored in `/data/realloc/states`.
 

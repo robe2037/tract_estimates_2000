@@ -71,6 +71,13 @@ purrr::walk(
       )
     }
     
+    interp <- tidyr::pivot_wider(
+      interp,
+      names_from = DATAYEAR,
+      values_from = ESTIMATE,
+      names_prefix = "ESTIMATE_"
+    )
+    
     vroom::vroom_write(
       interp,
       here::here("data", "popest", glue::glue("tr_popest_2000_2019_{state}.csv")),

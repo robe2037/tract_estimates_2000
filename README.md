@@ -156,7 +156,7 @@ Decennial counts are not included in the output files, even in years where both 
 
 Scripts for annual estimate interpolation are found in `/R/04_interp`, with single-decade data stored in `/data/interp`
 
-We combine the 2000 to 2010 and 2010 to 2019 time series for each tract into a single time series spanning 2000 to 2019. Final output data are provided by state and found in `/data/popest`.
+We combine the 2000 to 2010 and 2010 to 2019 time series for each tract into a single time series spanning 2000 to 2019. Final output data are provided by state and found in `/data/popest`. Final data files are long on age, sex, race, and tract. Each of these has individual columns for each estimate year, from 2000 to 2019.
 
 ### Notes
 
